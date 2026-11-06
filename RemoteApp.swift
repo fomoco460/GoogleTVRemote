@@ -33,7 +33,8 @@ struct RemoteView: View {
                 Button { settings = true } label: {
                     HStack(spacing: 10) {
                         Circle().fill(tv.connected || bluetooth.ready ? .green : .gray).frame(width: 8, height: 8)
-                        Text(tv.connected ? "Google TV" : "Choose TV").font(.system(size: 25, weight: .semibold))
+                        Text(tv.connected ? tv.displayName : "Choose TV").font(.system(size: 25, weight: .semibold))
+                            .lineLimit(1).minimumScaleFactor(0.6)
                         Image(systemName: "chevron.down").font(.caption.bold())
                     }
                 }
@@ -63,7 +64,8 @@ struct RemoteView: View {
                 Text(!tv.connected && bluetooth.ready ? "Bluetooth backup • experimental" : (tv.error ?? tv.status)).font(.caption2).foregroundStyle(.secondary)
                     .lineLimit(1).padding(.bottom, 18)
                 HStack(spacing: 12) {
-                    rocker("VOL", top: "plus", bottom: "minus", first: .volumeUp, second: .volumeDown, blue: true)
+                    rocker(tv.muted ? "MUTE" : "VOL", top: "plus", bottom: "minus", first: .volumeUp, second: .volumeDown, blue: true,
+                           level: tv.muted ? 0 : tv.volume.map { Double($0) / 100 })
                     VStack(spacing: 16) {
                         HStack(spacing: 10) {
                             utility("keyboard", label: "Keyboard") { keyboard = true }
@@ -71,7 +73,7 @@ struct RemoteView: View {
                             utility("circle.grid.3x3.fill", label: "Apps") { apps = true }
                         }
                         HStack(spacing: 10) {
-                            utility("speaker.wave.2", label: "Mute") { command(.mute) }
+                            utility(tv.muted ? "speaker.slash.fill" : "speaker.wave.2", label: "Mute") { command(.mute) }
                             utility("playpause.fill", label: "Play or pause") { sendKey(85) }
                             utility("arrow.uturn.backward", label: "Back") { command(.back) }
                         }
@@ -90,6 +92,7 @@ struct RemoteView: View {
                         ForEach(discovery.devices.keys.sorted(), id: \.self) { name in
                             Button(name) {
                                 tv.host = discovery.devices[name] ?? ""
+                                tv.remember(name: name, for: tv.host)
                                 tv.connect()
                             }
                         }
@@ -180,19 +183,30 @@ struct RemoteView: View {
         }.accessibilityLabel(label)
     }
 
-    private func rocker(_ title: String, top: String, bottom: String, first: RemoteCommand, second: RemoteCommand, blue: Bool) -> some View {
+    private func rocker(_ title: String, top: String, bottom: String, first: RemoteCommand, second: RemoteCommand, blue: Bool, level: Double? = nil) -> some View {
         VStack(spacing: 0) {
             Button { command(first) } label: {
                 Image(systemName: top).font(.title2).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
-            }.accessibilityLabel(title == "VOL" ? "Volume up" : "Channel up")
-            Text(title).font(.system(size: 17, weight: .light)).padding(.vertical, 8)
+            }.accessibilityLabel(blue ? "Volume up" : "Channel up")
+            Text(title).font(.system(size: 15, weight: .medium)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7).padding(.vertical, 8)
             Button { command(second) } label: {
                 Image(systemName: bottom).font(.title2).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
-            }.accessibilityLabel(title == "VOL" ? "Volume down" : "Channel down")
+            }.accessibilityLabel(blue ? "Volume down" : "Channel down")
         }.frame(width: 56, height: 172)
-            .background(blue ? Color(red: 0.19, green: 0.41, blue: 0.56) : Color(white: 0.19), in: Capsule())
+            .background {
+                ZStack(alignment: .bottom) {
+                    Capsule().fill(blue ? Color(red: 0.12, green: 0.26, blue: 0.36) : Color(white: 0.19))
+                    if blue {
+                        // Fill rises with the TV's volume percentage.
+                        Rectangle().fill(Color(red: 0.22, green: 0.50, blue: 0.70))
+                            .frame(height: 172 * (level ?? 1))
+                            .animation(.easeOut(duration: 0.2), value: level)
+                    }
+                }.clipShape(Capsule())
+            }
     }
 }
 

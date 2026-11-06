@@ -9,7 +9,7 @@ let package = Package(
         .target(
             name: "GoogleTVRemote",
             path: ".",
-            exclude: ["Tests", "README.md", "LOCAL-BUILD.md", "project.yml", "xtool.yml", "Support"],
+            exclude: ["Tests", "README.md", "LOCAL-BUILD.md", "project.yml", "xtool.yml", "Support", "Assets.xcassets"],
             sources: ["RemoteApp.swift", "TVConnection.swift", "BluetoothBackup.swift", "Identity.swift", "Wire.swift"],
             swiftSettings: [.define("XTOOL_BUILD")]
         )

@@ -10,7 +10,19 @@ final class TVConnection: ObservableObject {
     @Published var status = "Choose your Chromecast"
     @Published var connected = false
     @Published var waitingForPIN = false
-    @Published var volume: Int?
+    @Published var volume: Int?          // 0...100, as reported by the TV
+    @Published var muted = false
+    @Published private var reportedModel: String?
+    private var nameKey: String { "tvName:" + host.lowercased() }
+    /// Name shown in the header: the discovered network name, else the model the TV reports.
+    var displayName: String {
+        if let saved = UserDefaults.standard.string(forKey: nameKey), !saved.isEmpty { return saved }
+        if let reportedModel, !reportedModel.isEmpty { return reportedModel }
+        return "Google TV"
+    }
+    func remember(name: String, for host: String) {
+        UserDefaults.standard.set(name, forKey: "tvName:" + host.lowercased())
+    }
     @Published var error: String?
     private var socket: NWConnection?
     private var frames = FrameBuffer()
@@ -47,7 +59,7 @@ final class TVConnection: ObservableObject {
     private func close() {
         generation = UUID(); retry?.cancel(); timer?.invalidate()
         socket?.stateUpdateHandler = nil; socket?.cancel(); socket = nil
-        connected = false; waitingForPIN = false; volume = nil
+        connected = false; waitingForPIN = false; volume = nil; muted = false; reportedModel = nil
         frames = FrameBuffer(); serverKey = nil
     }
     private func open(pair: Bool) {
@@ -177,6 +189,11 @@ final class TVConnection: ObservableObject {
             switch field.number {
             case 1:
                 features = payload.number(1) & 615 // ping, keys, IME, power, volume, links
+                if let info = payload.bytes(2), let infoFields = try? PB.fields(info) {
+                    let model = infoFields.bytes(1).flatMap { String(data: $0, encoding: .utf8) }
+                    let vendor = infoFields.bytes(2).flatMap { String(data: $0, encoding: .utf8) }
+                    reportedModel = [vendor, model].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")
+                }
                 guard features & 2 != 0 else { fail("The TV does not offer remote key control."); return }
                 let info = PB.string(1, "iPhone") + PB.string(2, "Personal Remote") + PB.int(3, 1)
                     + PB.string(4, "1") + PB.string(5, "local.googletv.remote") + PB.string(6, "1.0")
@@ -188,7 +205,10 @@ final class TVConnection: ObservableObject {
                 imeCounter = payload.number(1); fieldCounter = payload.number(2)
             case 40:
                 connected = true; attempts = 0; error = nil; status = "Connected"
-            case 50: volume = Int(payload.number(7))
+            case 50:
+                let maximum = payload.number(6), level = payload.number(7)
+                if maximum > 0 { volume = Int((Double(min(level, maximum)) / Double(maximum) * 100).rounded()) }
+                muted = payload.number(8) != 0
             default: break
             }
         }
