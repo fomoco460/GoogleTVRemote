@@ -21,7 +21,10 @@ final class TVConnection: ObservableObject {
         return "Google TV"
     }
     func remember(name: String, for host: String) {
-        UserDefaults.standard.set(name, forKey: "tvName:" + host.lowercased())
+        let key = "tvName:" + host.lowercased()
+        guard UserDefaults.standard.string(forKey: key) != name else { return }
+        UserDefaults.standard.set(name, forKey: key)
+        objectWillChange.send()
     }
     @Published var error: String?
     private var socket: NWConnection?

@@ -23,67 +23,85 @@ struct RemoteView: View {
     @State private var text = ""
     @State private var pin = ""
     @State private var wasBackgrounded = false
-    private let background = Color(white: 0.115)
-    private let rim = LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+    // Indigo / neon purple theme
+    private let background = Color(red: 0.055, green: 0.047, blue: 0.10)
+    private let surface = Color(red: 0.13, green: 0.11, blue: 0.21)
+    private let indigo = Color(red: 0.33, green: 0.23, blue: 0.96)
+    private let neon = Color(red: 0.80, green: 0.32, blue: 1.0)
+    private let ink = Color(red: 0.90, green: 0.87, blue: 1.0)
+    private var accent: LinearGradient {
+        LinearGradient(colors: [neon, indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            let padSize = min(geometry.size.width - 32, geometry.size.height * 0.49)
+            let padSize = min(geometry.size.width - 70, geometry.size.height * 0.40)
             VStack(spacing: 0) {
-                Button { settings = true } label: {
-                    HStack(spacing: 10) {
-                        Circle().fill(tv.connected || bluetooth.ready ? .green : .gray).frame(width: 8, height: 8)
-                        Text(tv.connected ? tv.displayName : "Choose TV").font(.system(size: 25, weight: .semibold))
-                            .lineLimit(1).minimumScaleFactor(0.6)
-                        Image(systemName: "chevron.down").font(.caption.bold())
-                    }
-                }
-                .padding(.top, 12)
-                HStack {
-                    Button { settings = true } label: { Image(systemName: "gearshape.fill") }
-                    Spacer()
-                    Button { command(.power) } label: { Image(systemName: "power").foregroundStyle(.red) }
-                }
-                .font(.system(size: 28)).padding(.horizontal, 30).padding(.top, 20)
-                Spacer(minLength: 16)
-                ZStack {
-                    Circle().fill(LinearGradient(colors: [Color(white: 0.2), background], startPoint: .top, endPoint: .bottom))
-                    Circle().stroke(rim, lineWidth: 2)
-                    direction("chevron.up", .up).offset(y: -padSize * 0.325)
-                    direction("chevron.down", .down).offset(y: padSize * 0.325)
-                    direction("chevron.left", .left).offset(x: -padSize * 0.325)
-                    direction("chevron.right", .right).offset(x: padSize * 0.325)
-                    Button { command(.select) } label: {
-                        Circle().fill(Color(white: 0.19))
-                            .overlay(Circle().stroke(rim, lineWidth: 3))
-                            .shadow(color: .black.opacity(0.5), radius: 10, y: 8)
-                    }.frame(width: padSize * 0.29, height: padSize * 0.29)
-                        .accessibilityLabel("OK")
-                }.frame(width: padSize, height: padSize)
-                Spacer(minLength: 18)
-                Text(!tv.connected && bluetooth.ready ? "Bluetooth backup • experimental" : (tv.error ?? tv.status)).font(.caption2).foregroundStyle(.secondary)
-                    .lineLimit(1).padding(.bottom, 18)
+                // Top bar: settings, connected TV, power
                 HStack(spacing: 12) {
-                    rocker(tv.muted ? "MUTE" : "VOL", top: "plus", bottom: "minus", first: .volumeUp, second: .volumeDown, blue: true,
-                           level: tv.muted ? 0 : tv.volume.map { Double($0) / 100 })
-                    VStack(spacing: 16) {
-                        HStack(spacing: 10) {
-                            utility("keyboard", label: "Keyboard") { keyboard = true }
-                            utility("house", label: "Home") { command(.home) }
-                            utility("circle.grid.3x3.fill", label: "Apps") { apps = true }
+                    roundButton("gearshape.fill", label: "Settings", size: 44) { settings = true }
+                    Button { settings = true } label: {
+                        HStack(spacing: 8) {
+                            Circle().fill(tv.connected || bluetooth.ready ? neon : Color.gray)
+                                .frame(width: 8, height: 8)
+                                .shadow(color: neon.opacity(tv.connected ? 0.9 : 0), radius: 4)
+                            Text(tv.connected ? tv.displayName : "Choose TV")
+                                .font(.system(size: 17, weight: .semibold))
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                            Image(systemName: "chevron.down").font(.caption.bold()).foregroundStyle(.secondary)
                         }
-                        HStack(spacing: 10) {
-                            utility(tv.muted ? "speaker.slash.fill" : "speaker.wave.2", label: "Mute") { command(.mute) }
-                            utility("playpause.fill", label: "Play or pause") { sendKey(85) }
-                            utility("arrow.uturn.backward", label: "Back") { command(.back) }
+                        .padding(.horizontal, 16).frame(maxWidth: .infinity).frame(height: 44)
+                        .background(surface, in: Capsule())
+                    }
+                    roundButton("power", label: "Power", size: 44, tint: Color(red: 1, green: 0.36, blue: 0.58)) { command(.power) }
+                }
+                .padding(.horizontal, 20).padding(.top, 10)
+
+                Spacer(minLength: 12)
+                dpad(padSize)
+                Spacer(minLength: 12)
+
+                // Navigation strip
+                HStack(spacing: 0) {
+                    stripButton("arrow.uturn.backward", label: "Back") { command(.back) }
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1, height: 26)
+                    stripButton("house.fill", label: "Home") { command(.home) }
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1, height: 26)
+                    stripButton("playpause.fill", label: "Play or pause") { sendKey(85) }
+                }
+                .frame(height: 58).background(surface, in: Capsule())
+                .padding(.horizontal, 20)
+
+                Text(!tv.connected && bluetooth.ready ? "Bluetooth backup • experimental" : (tv.error ?? tv.status))
+                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    .padding(.vertical, 12)
+
+                // Volume + channel rockers, then utility buttons
+                HStack(spacing: 12) {
+                    rocker(tv.muted ? "MUTE" : "VOL", up: .volumeUp, down: .volumeDown, upSymbol: "plus", downSymbol: "minus",
+                           upLabel: "Volume up", downLabel: "Volume down",
+                           fill: tv.muted ? 0 : (tv.volume.map { Double($0) / 100 } ?? 0))
+                    rocker("CH", up: .channelUp, down: .channelDown, upSymbol: "chevron.up", downSymbol: "chevron.down",
+                           upLabel: "Channel up", downLabel: "Channel down", fill: nil)
+                    Spacer(minLength: 8)
+                    Grid(horizontalSpacing: 14, verticalSpacing: 14) {
+                        GridRow {
+                            roundButton(tv.muted ? "speaker.slash.fill" : "speaker.wave.2.fill", label: "Mute", size: 72) { command(.mute) }
+                            roundButton("keyboard", label: "Keyboard", size: 72) { keyboard = true }
+                        }
+                        GridRow {
+                            roundButton("square.grid.2x2.fill", label: "Apps", size: 72) { apps = true }
+                            roundButton("slider.horizontal.3", label: "TV settings", size: 72) { sendKey(176) }
                         }
                     }
-                    rocker("CH", top: "chevron.up", bottom: "chevron.down", first: .channelUp, second: .channelDown, blue: false)
-                }.padding(.horizontal, 22).padding(.bottom, 18)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .padding(.horizontal, 20).padding(.bottom, 16)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(background.ignoresSafeArea())
-        .foregroundStyle(Color(white: 0.84)).buttonStyle(.plain)
+        .foregroundStyle(ink).buttonStyle(.plain)
+        .tint(neon)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $settings) {
             NavigationStack {
@@ -126,7 +144,7 @@ struct RemoteView: View {
                     }
                 }.navigationTitle("Your Google TV")
                     .toolbar { Button("Done") { settings = false } }
-            }.onAppear { discovery.start() }.onDisappear { discovery.stop() }
+            }.tint(neon).onAppear { discovery.start() }
         }
         .sheet(isPresented: $keyboard) {
             NavigationStack {
@@ -137,14 +155,25 @@ struct RemoteView: View {
                     Text("Select a text field on your TV first. You can also use the iPhone keyboard’s dictation button.").font(.footnote)
                 }.navigationTitle("Keyboard")
                     .toolbar { Button("Done") { keyboard = false } }
-            }.presentationDetents([.medium])
+            }.tint(neon).presentationDetents([.medium])
         }
         .confirmationDialog("App shortcuts", isPresented: $apps, titleVisibility: .visible) {
             Button("YouTube") { tv.launch("https://www.youtube.com") }
             Button("Netflix") { tv.launch("https://www.netflix.com") }
             Button("Cancel", role: .cancel) { }
         }
-        .onAppear { if tv.host.isEmpty { settings = true } else { tv.connect() } }
+        .onAppear {
+            discovery.start()
+            if tv.host.isEmpty { settings = true } else { tv.connect() }
+        }
+        .onReceive(discovery.$devices) { devices in
+            // Learn the friendly name (e.g. "Living Room TV") of the TV in use.
+            let dots = CharacterSet(charactersIn: ".")
+            let current = tv.host.lowercased().trimmingCharacters(in: dots)
+            for (name, host) in devices where host.lowercased().trimmingCharacters(in: dots) == current {
+                tv.remember(name: name, for: tv.host)
+            }
+        }
         .onChange(of: tv.waitingForPIN) { _, waiting in if waiting { settings = true } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && wasBackgrounded {
@@ -168,45 +197,81 @@ struct RemoteView: View {
         else if !bluetooth.key(code) { tv.key(code) }
     }
 
+    private func dpad(_ size: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(LinearGradient(colors: [Color(red: 0.17, green: 0.14, blue: 0.28), Color(red: 0.08, green: 0.07, blue: 0.14)],
+                                     startPoint: .top, endPoint: .bottom))
+                .shadow(color: neon.opacity(0.35), radius: 24)
+            Circle().strokeBorder(accent, lineWidth: 2)
+            direction("chevron.up", .up).offset(y: -size * 0.34)
+            direction("chevron.down", .down).offset(y: size * 0.34)
+            direction("chevron.left", .left).offset(x: -size * 0.34)
+            direction("chevron.right", .right).offset(x: size * 0.34)
+            Button { command(.select) } label: {
+                Circle().fill(LinearGradient(colors: [neon, indigo], startPoint: .top, endPoint: .bottom))
+                    .overlay(Text("OK").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(.white))
+                    .shadow(color: neon.opacity(0.55), radius: 14)
+            }
+            .frame(width: size * 0.34, height: size * 0.34)
+            .accessibilityLabel("OK")
+        }
+        .frame(width: size, height: size)
+    }
+
     private func direction(_ symbol: String, _ value: RemoteCommand) -> some View {
         Button { command(value) } label: {
-            Image(systemName: symbol).font(.system(size: 27, weight: .semibold))
+            Image(systemName: symbol).font(.system(size: 26, weight: .bold))
                 .frame(width: 64, height: 64).contentShape(Rectangle())
         }.accessibilityLabel(value.rawValue)
     }
 
-    private func utility(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+    private func roundButton(_ symbol: String, label: String, size: CGFloat, tint: Color? = nil,
+                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Circle().fill(Color(white: 0.19))
-                .overlay(Image(systemName: symbol).font(.system(size: 25, weight: .regular)))
-                .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
+            Circle().fill(surface)
+                .overlay(Image(systemName: symbol).font(.system(size: size * 0.34, weight: .semibold))
+                    .foregroundStyle(tint ?? ink))
+                .frame(width: size, height: size)
         }.accessibilityLabel(label)
     }
 
-    private func rocker(_ title: String, top: String, bottom: String, first: RemoteCommand, second: RemoteCommand, blue: Bool, level: Double? = nil) -> some View {
+    private func stripButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 22, weight: .semibold))
+                .frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
+        }.accessibilityLabel(label)
+    }
+
+    /// Vertical rocker. When `fill` is set, a neon level rises and falls with it (0...1).
+    private func rocker(_ title: String, up: RemoteCommand, down: RemoteCommand, upSymbol: String, downSymbol: String,
+                        upLabel: String, downLabel: String, fill: Double?) -> some View {
         VStack(spacing: 0) {
-            Button { command(first) } label: {
-                Image(systemName: top).font(.title2).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-            }.accessibilityLabel(blue ? "Volume up" : "Channel up")
-            Text(title).font(.system(size: 15, weight: .medium)).monospacedDigit()
-                .lineLimit(1).minimumScaleFactor(0.7).padding(.vertical, 8)
-            Button { command(second) } label: {
-                Image(systemName: bottom).font(.title2).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-            }.accessibilityLabel(blue ? "Volume down" : "Channel down")
-        }.frame(width: 56, height: 172)
-            .background {
-                ZStack(alignment: .bottom) {
-                    Capsule().fill(blue ? Color(red: 0.12, green: 0.26, blue: 0.36) : Color(white: 0.19))
-                    if blue {
-                        // Fill rises with the TV's volume percentage.
-                        Rectangle().fill(Color(red: 0.22, green: 0.50, blue: 0.70))
-                            .frame(height: 172 * (level ?? 1))
-                            .animation(.easeOut(duration: 0.2), value: level)
-                    }
-                }.clipShape(Capsule())
+            Button { command(up) } label: {
+                Image(systemName: upSymbol).font(.title2.weight(.semibold))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
+            }.accessibilityLabel(upLabel)
+            Text(title).font(.system(size: 14, weight: .bold, design: .rounded))
+                .lineLimit(1).minimumScaleFactor(0.7).padding(.vertical, 6)
+            Button { command(down) } label: {
+                Image(systemName: downSymbol).font(.title2.weight(.semibold))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
+            }.accessibilityLabel(downLabel)
+        }
+        .frame(width: 60, height: 172)
+        .background {
+            ZStack(alignment: .bottom) {
+                Capsule().fill(surface)
+                if let fill {
+                    Rectangle()
+                        .fill(LinearGradient(colors: [neon, indigo], startPoint: .top, endPoint: .bottom))
+                        .frame(height: 172 * min(max(fill, 0), 1))
+                        .animation(.easeOut(duration: 0.2), value: fill)
+                }
             }
+            .clipShape(Capsule())
+            .overlay(Capsule().strokeBorder(fill == nil ? Color.clear : neon.opacity(0.5), lineWidth: 1))
+        }
     }
 }
 
