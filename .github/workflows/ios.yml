@@ -1,5 +1,8 @@
 name: Build iPhone app
 on: [push, workflow_dispatch]
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
