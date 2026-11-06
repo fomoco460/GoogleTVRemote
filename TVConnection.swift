@@ -198,8 +198,8 @@ final class TVConnection: ObservableObject {
                     reportedModel = [vendor, model].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")
                 }
                 guard features & 2 != 0 else { fail("The TV does not offer remote key control."); return }
-                let info = PB.string(1, "iPhone") + PB.string(2, "Personal Remote") + PB.int(3, 1)
-                    + PB.string(4, "1") + PB.string(5, "local.googletv.remote") + PB.string(6, "1.0")
+                // Mirror androidtvremote2's device info; the TV appears to gate app-link launches on it.
+                let info = PB.int(3, 1) + PB.string(4, "1") + PB.string(5, "atvremote") + PB.string(6, "1.0.0")
                 send(PB.blob(1, PB.int(1, features) + PB.blob(2, info)))
             case 2: send(PB.blob(2, PB.int(1, features)))
             case 3: fail("The TV reported a protocol error."); return
