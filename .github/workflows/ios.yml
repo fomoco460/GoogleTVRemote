@@ -1,12 +1,11 @@
 name: Build iPhone app
-on:
-  push:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 permissions:
   contents: read
 jobs:
   build:
     runs-on: macos-15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
