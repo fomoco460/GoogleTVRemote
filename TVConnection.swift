@@ -228,10 +228,6 @@ final class TVConnection: ObservableObject {
         send(PB.blob(21, PB.int(1, imeCounter) + PB.int(2, fieldCounter)
             + PB.blob(3, PB.int(1, 1) + PB.blob(2, object))))
     }
-    func launch(_ link: String) {
-        guard connected, features & 512 != 0 else { error = "App shortcuts aren’t available on this connection."; return }
-        send(PB.blob(90, PB.string(1, link)))
-    }
 }
 
 final class TVDiscovery: NSObject, ObservableObject, NetServiceBrowserDelegate, NetServiceDelegate {

@@ -16,11 +16,9 @@ struct RemoteView: View {
     @StateObject private var tv = TVConnection()
     @StateObject private var discovery = TVDiscovery()
     @StateObject private var bluetooth = BluetoothBackup()
-    @StateObject private var shortcuts = ShortcutStore()
     @Environment(\.scenePhase) private var scenePhase
     @State private var keyboard = false
     @State private var settings = false
-    @State private var apps = false
     @State private var text = ""
     @State private var pin = ""
     @State private var wasBackgrounded = false
@@ -85,14 +83,16 @@ struct RemoteView: View {
                     rocker("CH", up: .channelUp, down: .channelDown, upSymbol: "chevron.up", downSymbol: "chevron.down",
                            upLabel: "Channel up", downLabel: "Channel down", fill: nil)
                     Spacer(minLength: 8)
-                    Grid(horizontalSpacing: 14, verticalSpacing: 14) {
-                        GridRow {
+                    VStack(spacing: 14) {
+                        HStack(spacing: 14) {
                             roundButton(tv.muted ? "speaker.slash.fill" : "speaker.wave.2.fill", label: "Mute", size: 72) { command(.mute) }
-                            roundButton("keyboard", label: "Keyboard", size: 72) { keyboard = true }
-                        }
-                        GridRow {
-                            roundButton("square.grid.2x2.fill", label: "Apps", size: 72) { apps = true }
                             roundButton("slider.horizontal.3", label: "TV settings", size: 72) { sendKey(176) }
+                        }
+                        Button { keyboard = true } label: {
+                            Label("Keyboard", systemImage: "keyboard")
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(width: 158, height: 72)
+                                .background(surface, in: Capsule())
                         }
                     }
                 }
@@ -157,9 +157,6 @@ struct RemoteView: View {
                 }.navigationTitle("Keyboard")
                     .toolbar { Button("Done") { keyboard = false } }
             }.tint(neon).presentationDetents([.medium])
-        }
-        .sheet(isPresented: $apps) {
-            ShortcutsSheet(store: shortcuts) { tv.launch($0.link) }.tint(neon)
         }
         .onAppear {
             discovery.start()
@@ -270,105 +267,6 @@ struct RemoteView: View {
             }
             .clipShape(Capsule())
             .overlay(Capsule().strokeBorder(fill == nil ? Color.clear : neon.opacity(0.5), lineWidth: 1))
-        }
-    }
-}
-
-// MARK: - Editable app shortcuts
-
-struct AppShortcut: Codable, Identifiable, Hashable {
-    var id = UUID()
-    var name: String
-    /// Android package name (e.g. com.netflix.ninja) or a full link (anything containing "://").
-    var target: String
-    var link: String {
-        let t = target.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.contains("://") ? t : "market://launch?id=" + t
-    }
-}
-
-final class ShortcutStore: ObservableObject {
-    @Published var items: [AppShortcut] { didSet { save() } }
-    private static let key = "appShortcuts.v1"
-    /// Common Google TV apps, offered as one-tap additions.
-    static let suggestions: [AppShortcut] = [
-        AppShortcut(name: "YouTube", target: "com.google.android.youtube.tv"),
-        AppShortcut(name: "Netflix", target: "com.netflix.ninja"),
-        AppShortcut(name: "Disney+", target: "com.disney.disneyplus"),
-        AppShortcut(name: "Prime Video", target: "com.amazon.amazonvideo.livingroom"),
-        AppShortcut(name: "Spotify", target: "com.spotify.tv.android"),
-        AppShortcut(name: "Plex", target: "com.plexapp.android"),
-    ]
-    init() {
-        if let data = UserDefaults.standard.data(forKey: Self.key),
-           let saved = try? JSONDecoder().decode([AppShortcut].self, from: data) {
-            items = saved
-        } else {
-            items = Array(Self.suggestions.prefix(2))
-        }
-    }
-    private func save() {
-        if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: Self.key) }
-    }
-}
-
-struct ShortcutsSheet: View {
-    @ObservedObject var store: ShortcutStore
-    let launch: (AppShortcut) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var target = ""
-
-    private func clean(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("Tap to open on your TV") {
-                    if store.items.isEmpty {
-                        Text("No shortcuts. Add one below.").foregroundStyle(.secondary)
-                    }
-                    ForEach(store.items) { item in
-                        Button { launch(item); dismiss() } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name).foregroundStyle(.primary)
-                                Text(item.target).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .onDelete { store.items.remove(atOffsets: $0) }
-                    .onMove { store.items.move(fromOffsets: $0, toOffset: $1) }
-                }
-                let missing = ShortcutStore.suggestions.filter { s in !store.items.contains { $0.target == s.target } }
-                if !missing.isEmpty {
-                    Section("Quick add") {
-                        ForEach(missing) { s in
-                            Button { store.items.append(AppShortcut(name: s.name, target: s.target)) } label: {
-                                Label(s.name, systemImage: "plus.circle.fill")
-                            }
-                        }
-                    }
-                }
-                Section("Add your own") {
-                    TextField("Name (e.g. Kodi)", text: $name)
-                    TextField("Package name or link", text: $target)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
-                    Button("Add shortcut") {
-                        store.items.append(AppShortcut(name: clean(name), target: clean(target)))
-                        name = ""; target = ""
-                    }
-                    .disabled(clean(name).isEmpty || clean(target).isEmpty)
-                }
-                Section {
-                    Text("Enter the app’s Android package name (for example org.xbmc.kodi), or a full link. Swipe left on a shortcut to delete it; tap Edit to reorder.")
-                        .font(.footnote)
-                }
-            }
-            .navigationTitle("App shortcuts")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { EditButton() }
-                ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
-            }
         }
     }
 }

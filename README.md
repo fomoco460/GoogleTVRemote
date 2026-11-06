@@ -10,11 +10,11 @@ GitHub Actions generates the Xcode project, runs the simulator tests, and builds
 
 Allow Local Network access, keep the phone and Chromecast on the same network, and open the gear button. Select a discovered TV or enter its IP address. Connect, then enter the six-character code displayed on the television. Pairing uses a unique RSA identity stored in iOS Keychain. The television's public key is pinned after PIN verification. Reconnect reuses this identity; Pair again is available if the television has forgotten the phone.
 
-Wi-Fi controls include navigation, OK, Home, Back, power, volume, mute, channel keys, play/pause, text entry, and app-link shortcuts. Power, channel, volume, text, and deep-link behavior depend on the television and foreground app. Volume keys cannot reproduce the physical remote's infrared emitter. Select a TV text field before sending keyboard text. Direct microphone audio streaming is not implemented; iPhone keyboard dictation can produce text to send.
+Wi-Fi controls include navigation, OK, Home, Back, power, volume, mute, channel keys, play/pause, TV settings, and text entry. Power, channel, volume, and text behavior depend on the television and foreground app. Volume keys cannot reproduce the physical remote's infrared emitter. Select a TV text field before sending keyboard text. Direct microphone audio streaming is not implemented; iPhone keyboard dictation can produce text to send.
 
 ## Experimental Bluetooth backup
 
-In settings, select Pair Bluetooth TV, then find My TV Remote in the Chromecast's Remotes & accessories pairing menu. The app publishes a BLE HID keyboard and consumer-control service. Supported remote buttons fall back to Bluetooth when Wi-Fi is disconnected and the television has subscribed. This is experimental: iOS publication and Chromecast interoperability require physical-device validation. A subscription indicates transport readiness, not proof that the television handles every button. Keep the iPhone app in the foreground. Text and app shortcuts currently require Wi-Fi.
+In settings, select Pair Bluetooth TV, then find My TV Remote in the Chromecast's Remotes & accessories pairing menu. The app publishes a BLE HID keyboard and consumer-control service. Supported remote buttons fall back to Bluetooth when Wi-Fi is disconnected and the television has subscribed. This is experimental: iOS publication and Chromecast interoperability require physical-device validation. A subscription indicates transport readiness, not proof that the television handles every button. Keep the iPhone app in the foreground. Text entry requires Wi-Fi.
 
 ## Reliability
 
