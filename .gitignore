@@ -5,3 +5,7 @@ Payload/
 *.ipa
 *.xcresult/
 .DS_Store
+.build/
+.swiftpm/
+.bsp/
+xtool/

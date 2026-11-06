@@ -1,0 +1,4 @@
+version: 1
+bundleID: local.fomoco460.GoogleTVRemote
+product: GoogleTVRemote
+infoPath: Support/Info.plist

@@ -6,7 +6,7 @@ struct RemoteApp: App {
     var body: some Scene { WindowGroup { RemoteView() } }
 }
 
-// The UI emits commands here. Supply a paired Google TV transport to control hardware.
+// Commands are routed to the authenticated Wi-Fi connection or experimental BLE backup.
 enum RemoteCommand: String {
     case up, down, left, right, select, home, back, power
     case volumeUp, volumeDown, mute, channelUp, channelDown, microphone
@@ -196,4 +196,6 @@ struct RemoteView: View {
     }
 }
 
+#if !XTOOL_BUILD
 #Preview { RemoteView() }
+#endif
