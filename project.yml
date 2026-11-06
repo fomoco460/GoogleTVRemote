@@ -14,8 +14,11 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: .
-        includes: ['*.swift']
+      - RemoteApp.swift
+      - TVConnection.swift
+      - BluetoothBackup.swift
+      - Identity.swift
+      - Wire.swift
     info:
       path: Generated/Info.plist
       properties:
